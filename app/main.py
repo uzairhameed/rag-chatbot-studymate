@@ -2,12 +2,14 @@ from fastapi import FastAPI
 
 from app.routers.auth import router as auth_router
 from app.routers.rooms import router as rooms_router
+from app.routers.upload import router as upload_router
 
 app = FastAPI(title="StudyMate API", version="0.1.0")
 
 # Register each route group with the main FastAPI application.
 app.include_router(auth_router)
 app.include_router(rooms_router)
+app.include_router(upload_router)
 
 
 @app.get("/", tags=["system"])
