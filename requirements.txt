@@ -2,7 +2,7 @@ alembic==1.20.1
 annotated-doc==0.0.6
 annotated-types==0.8.0
 anyio==4.16.0
-bcrypt==5.0.0
+bcrypt==4.0.1
 boto3==1.44.2
 botocore==1.44.2
 cffi==2.1.1
@@ -16,10 +16,11 @@ h11==0.16.0
 httptools==0.9.0
 idna==3.20
 jmespath==1.1.0
+moviepy==2.2.1
 Mako==1.4.3
 MarkupSafe==3.0.4
 opentelemetry-api==1.45.2
-passlib==1.7.4
+passlib[bcrypt]==1.7.4
 psycopg2-binary==2.9.13
 pyasn1==0.6.5
 pycparser==3.12
@@ -30,6 +31,8 @@ python-dotenv==1.2.4
 python-jose==3.5.0
 python-multipart==0.0.33
 PyYAML==6.0.3
+python-pptx==1.0.2
+groq==1.7.0
 rsa==4.9.1
 s3transfer==0.19.3
 six==1.17.0
@@ -44,3 +47,6 @@ websockets==17.4
 pymupdf4llm
 python-docx
 pandas
+sentence-transformers
+qdrant-client
+python-pptx

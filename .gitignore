@@ -7,6 +7,7 @@ __pycache__/
 # Secrets and uploaded files
 .env
 uploads/
+qdrant_storage/
 
 # Local database files
 *.db
