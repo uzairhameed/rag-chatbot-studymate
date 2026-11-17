@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.db.models import ChatRoom, UploadedFile, User
-from app.schemas.files import UploadResponse
+from app.schemas.files import UploadResponse,UploadedFileRead
 from app.services.auth import get_current_user
 from app.services.ingestion.chunker import chunk_texts
 from app.services.ingestion.csv import extract_csv
@@ -23,6 +23,7 @@ from app.services.ingestion.pptx import extract_pptx
 from app.services.ingestion.image import extract_image
 from app.services.ingestion.audio import extract_audio
 from app.services.ingestion.video import extract_video
+from app.services.room_access import get_accessible_room
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,22 @@ SUPPORTED_FILE_TYPES = {
     
 }
 
+@router.get("/{room_id}", response_model=list[UploadedFileRead])
+def list_room_files(
+    room_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[UploadedFile]:
+    """List a room's uploaded files for its owner or member."""
+    get_accessible_room(db, room_id, current_user.id)
 
+    return list(
+        db.scalars(
+            select(UploadedFile)
+            .where(UploadedFile.room_id == room_id)
+            .order_by(UploadedFile.uploaded_at.desc(), UploadedFile.id.desc())
+        ).all()
+    )
 @router.post(
     "/{room_id}",
     response_model=UploadResponse,
@@ -65,18 +81,8 @@ def upload_room_file(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> UploadResponse:
-    """Store, extract, chunk, and index a file for an owned room."""
-    room = db.scalar(
-        select(ChatRoom).where(
-            ChatRoom.id == room_id,
-            ChatRoom.owner_id == current_user.id,
-        )
-    )
-    if room is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Room not found",
-        )
+    """Store, extract, chunk, and index a file in an accessible room."""
+    get_accessible_room(db, room_id, current_user.id)
 
     filename = Path(file.filename or "uploaded-file").name
     extension = Path(filename).suffix.lower()
@@ -85,7 +91,8 @@ def upload_room_file(
     if file_info is None:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Currently supported: PDF, DOCX, CSV, TXT, Markdown, PPTX, PNG, JPG, JPEG, WEBP,MP3, WAV, M4A, OGG, and FLAC",
+            detail="Currently supported: PDF, DOCX, CSV, TXT, Markdown, PPTX, PNG, "
+            "JPG, JPEG, WEBP, MP3, WAV, M4A, OGG, FLAC, MP4, MOV, AVI, MKV, and WEBM",
         )
 
     file_type, extractor = file_info

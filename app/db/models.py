@@ -8,6 +8,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,10 +31,14 @@ class User(Base):
     # Lets us access a user's rooms through user.rooms.
     rooms: Mapped[list[ChatRoom]] = relationship(back_populates="owner")
     messages: Mapped[list[ChatMessage]] = relationship(back_populates="user")
+    # Membership records for rooms this user has been added to.
+    room_memberships: Mapped[list[RoomMember]] = relationship(
+    back_populates="user",
+    cascade="all, delete-orphan",
+)
 
 class ChatRoom(Base):
     """A course or study room owned by one user."""
-
     __tablename__ = "chat_rooms"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -54,10 +59,42 @@ class ChatRoom(Base):
     uploaded_files: Mapped[list[UploadedFile]] = relationship(
         back_populates="room", cascade="all, delete-orphan"
     )
+    # Membership records for users explicitly added to this room.
+    members: Mapped[list[RoomMember]] = relationship(
+       back_populates="room",
+       cascade="all, delete-orphan",
+)
+
+class RoomMember(Base):
+    """A user explicitly granted access to a room."""
+    __tablename__ = "room_members"
+    __table_args__ = (
+        UniqueConstraint(
+            "room_id",
+            "user_id",
+            name="uq_room_members_room_user",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    room_id: Mapped[int] = mapped_column(
+        ForeignKey("chat_rooms.id", ondelete="CASCADE"),
+        index=True,
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    joined_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+    room: Mapped[ChatRoom] = relationship(back_populates="members")
+    user: Mapped[User] = relationship(back_populates="room_memberships")
 
 class ChatMessage(Base):
     """One user or assistant message in a room."""
-
     __tablename__ = "chat_messages"
     __table_args__ = (
         CheckConstraint("role IN ('user', 'assistant')", name="valid_message_role"),
@@ -75,13 +112,11 @@ class ChatMessage(Base):
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
-
     room: Mapped[ChatRoom] = relationship(back_populates="messages")
     user: Mapped[User] = relationship(back_populates="messages")
 
 class UploadedFile(Base):
     """Database record for an original file stored in S3."""
-
     __tablename__ = "uploaded_files"
     __table_args__ = (
         CheckConstraint(
