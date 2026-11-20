@@ -48,3 +48,10 @@ def download_fileobj(storage_key: str, file_obj: BinaryIO) -> None:
         storage_key,
         file_obj,
     )
+
+def delete_object(storage_key: str) -> None:
+    """Delete an uploaded object from S3."""
+    s3_client.delete_object(
+        Bucket=S3_BUCKET_NAME,
+        Key=storage_key,
+    )

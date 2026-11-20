@@ -64,6 +64,9 @@ def login_user(email: str, password: str) -> dict[str, Any]:
         json={"email": email, "password": password},
     )
 
+def get_current_user(token: str) -> dict[str, Any]:
+    """Return the signed-in user's profile."""
+    return _request("GET", "/auth/me", token=token)
 
 def list_rooms(token: str) -> list[dict[str, Any]]:
     """Return rooms owned by the signed-in user."""
@@ -83,6 +86,23 @@ def create_room(
         json={"name": name, "description": description},
     )
 
+def delete_room(token: str, room_id: int) -> None:
+    """Delete a room through the owner-only API endpoint."""
+    _request("DELETE", f"/rooms/{room_id}", token=token)
+
+
+def add_room_member(
+    token: str,
+    room_id: int,
+    email: str,
+) -> dict[str, Any]:
+    """Add an existing user to a room through the owner-only API endpoint."""
+    return _request(
+        "POST",
+        f"/rooms/{room_id}/members",
+        token=token,
+        json={"email": email.strip().lower()},
+    )
 
 def list_room_files(token: str, room_id: int) -> list[dict[str, Any]]:
     """List file names and processing statuses for a room."""

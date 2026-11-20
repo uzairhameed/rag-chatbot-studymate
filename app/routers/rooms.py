@@ -4,11 +4,12 @@ from sqlalchemy import or_,select
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.db.models import ChatRoom, User, RoomMember
+from app.db.models import ChatRoom, User, RoomMember, UploadedFile
 from app.schemas.rooms import RoomCreate, RoomRead,RoomMemberCreate,RoomMemberRead
 from app.services.auth import get_current_user
 from sqlalchemy.exc import IntegrityError
-
+from app.services.storage import delete_object
+from app.services.vector_store import delete_file_chunks
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
 
@@ -53,13 +54,12 @@ def create_room(
     return room
 
 @router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
-
 def delete_room(
     room_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Response:
-    """Delete a room only when it belongs to the signed-in user."""
+    """Delete a room and its stored files, for the room owner only."""
     room = db.scalar(
         select(ChatRoom).where(
             ChatRoom.id == room_id,
@@ -71,6 +71,15 @@ def delete_room(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Room not found",
         )
+
+    files = db.scalars(
+        select(UploadedFile).where(UploadedFile.room_id == room_id)
+    ).all()
+
+    # Remove external data before deleting the database records.
+    for uploaded_file in files:
+        delete_file_chunks(uploaded_file.id)
+        delete_object(uploaded_file.storage_key)
 
     db.delete(room)
     db.commit()

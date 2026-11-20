@@ -1,15 +1,16 @@
 """Chat, history, and history-clearing endpoints."""
-
+import re
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.db.models import ChatMessage, ChatRoom, User
+from app.db.models import ChatMessage, ChatRoom, User, UploadedFile
 from app.schemas.chat import ChatMessageRead, ChatRequest, ChatResponse
 from app.services.auth import get_current_user
 from app.services.rag import answer_from_chunks
-from app.services.vector_store import search_chunks
+from app.services.vector_store import get_file_chunks, search_chunks
 from app.services.room_access import get_accessible_room
 
 
@@ -31,6 +32,47 @@ def get_owned_room(db: Session, room_id: int, user_id: int) -> ChatRoom:
         )
     return room
 
+
+def find_summary_file(
+    db: Session,
+    room_id: int,
+    query: str,
+) -> UploadedFile | None:
+    """Find the ready file named in a document-summary request."""
+    summary_terms = ("summarize", "summarise", "summary", "overview")
+    if not any(term in query.lower() for term in summary_terms):
+        return None
+
+    files = list(
+        db.scalars(
+            select(UploadedFile).where(
+                UploadedFile.room_id == room_id,
+                UploadedFile.status == "ready",
+            )
+        ).all()
+    )
+
+    query_words = set(re.findall(r"[a-z0-9]+", query.lower()))
+    matches = []
+
+    for uploaded_file in files:
+        filename_words = set(
+            re.findall(
+                r"[a-z0-9]+",
+                Path(uploaded_file.filename).stem.lower(),
+            )
+        )
+        if filename_words and filename_words.issubset(query_words):
+            matches.append(uploaded_file)
+
+    if len(matches) == 1:
+        return matches[0]
+
+    # If there is only one ready file, “summarize this document” is unambiguous.
+    if not matches and len(files) == 1:
+        return files[0]
+
+    return None
 
 @router.post("/{room_id}", response_model=ChatResponse)
 def chat_in_room(
@@ -55,10 +97,14 @@ def chat_in_room(
         for message in reversed(recent_messages)
     ]
 
-    # search_chunks embeds the query and filters Qdrant results to this room.
-    chunks = search_chunks(data.query, room_id=room_id, limit=5)
-    answer, sources = answer_from_chunks(data.query, history, chunks)
+    summary_file = find_summary_file(db, room_id, data.query)
 
+    if summary_file is not None:
+        chunks = get_file_chunks(summary_file.id)
+    else:
+        chunks = search_chunks(data.query, room_id=room_id, limit=5)
+
+    answer, sources = answer_from_chunks(data.query, history, chunks)
     # Store both sides of the conversation; user messages have no citations.
     user_message = ChatMessage(
         room_id=room_id,

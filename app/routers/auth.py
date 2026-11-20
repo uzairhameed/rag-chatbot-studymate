@@ -8,11 +8,19 @@ from app.db.models import User
 from app.schemas.auth import LoginRequest, TokenResponse, UserCreate, UserRead
 from app.services.auth import (
     create_access_token,
+    get_current_user,
     hash_password,
     verify_password,
 )
 
 router= APIRouter(prefix="/auth", tags=["auth"])
+
+@router.get("/me", response_model=UserRead)
+def read_current_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Return the signed-in user's safe profile fields."""
+    return current_user
 
 @router.post(
     "/register",

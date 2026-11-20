@@ -1,6 +1,6 @@
 import os
 from typing import Any
-
+import re
 from dotenv import load_dotenv
 from groq import Groq
 from qdrant_client.http.models import ScoredPoint
@@ -39,12 +39,19 @@ def answer_from_chunks(
                 f"Qdrant result is missing citation data: {missing_fields or ['text']}"
             )
 
+        excerpt = chunk_text[:150]
+        if len(chunk_text) > 150:
+            last_space = excerpt.rfind(" ")
+            if last_space > 0:
+                excerpt = excerpt[:last_space]
+            excerpt += "…"
+
         sources.append(
             {
                 "filename": str(payload["filename"]),
                 "file_type": str(payload["file_type"]),
                 "chunk_index": int(payload["chunk_index"]),
-                "excerpt": chunk_text[:150],
+                "excerpt": excerpt,
             }
         )
         context_parts.append(f"[Source {source_number}]\n{chunk_text}")
@@ -78,7 +85,8 @@ def answer_from_chunks(
     response = client.chat.completions.create(
         model=CHAT_MODEL,
         messages=messages,
-        max_completion_tokens=512,
+        max_completion_tokens=2048,
+        reasoning_effort="low",
     )
 
     answer = response.choices[0].message.content
@@ -89,5 +97,18 @@ def answer_from_chunks(
     answer = answer.strip()
     if answer.lower().strip(" .!?'’") in {"i don't know", "i don’t know"}:
         return ABSTAIN_ANSWER, []
+
+    cited_numbers = {
+        int(number)
+        for number in re.findall(
+            r"[\[【]Source\s+(\d+)[\]】]",
+            answer,
+        )
+    }
+    sources = [
+        source
+        for number, source in enumerate(sources, start=1)
+        if number in cited_numbers
+    ]
 
     return answer, sources

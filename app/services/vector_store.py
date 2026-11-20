@@ -85,6 +85,40 @@ def delete_file_chunks(file_id: int) -> None:
         wait=True,
     )
 
+def get_file_chunks(file_id: int) -> list[models.Record]:
+    """Return every stored chunk for a file, ordered by chunk index."""
+    if not qdrant_client.collection_exists(COLLECTION_NAME):
+        return []
+
+    all_points: list[models.Record] = []
+    offset = None
+
+    while True:
+        points, next_offset = qdrant_client.scroll(
+            collection_name=COLLECTION_NAME,
+            scroll_filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="file_id",
+                        match=models.MatchValue(value=file_id),
+                    )
+                ]
+            ),
+            limit=100,
+            offset=offset,
+            with_payload=True,
+            with_vectors=False,
+        )
+        all_points.extend(points)
+
+        if next_offset is None:
+            break
+        offset = next_offset
+
+    return sorted(
+        all_points,
+        key=lambda point: int((point.payload or {}).get("chunk_index", 0)),
+    )
 
 def search_chunks(
     query: str,
