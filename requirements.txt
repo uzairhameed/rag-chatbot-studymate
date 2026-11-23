@@ -34,7 +34,6 @@ PyYAML==6.0.3
 python-pptx==1.0.2
 groq==1.7.0
 rsa==4.9.1
-requests==2.34.2
 s3transfer==0.19.3
 six==1.17.0
 SQLAlchemy==2.1.8

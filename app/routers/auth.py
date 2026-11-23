@@ -15,12 +15,6 @@ from app.services.auth import (
 
 router= APIRouter(prefix="/auth", tags=["auth"])
 
-@router.get("/me", response_model=UserRead)
-def read_current_user(
-    current_user: User = Depends(get_current_user),
-) -> User:
-    """Return the signed-in user's safe profile fields."""
-    return current_user
 
 @router.post(
     "/register",
@@ -89,3 +83,10 @@ def login(
 
     token = create_access_token(subject=user.email)
     return TokenResponse(access_token=token)
+
+@router.get("/me", response_model=UserRead)
+def read_current_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Return the signed-in user's safe profile fields."""
+    return current_user

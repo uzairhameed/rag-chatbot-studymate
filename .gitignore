@@ -6,8 +6,12 @@ __pycache__/
 
 # Secrets and uploaded files
 .env
+.env.docker
+app/.env.docker
+frontend/.env.docker
 uploads/
 qdrant_storage/
+*.dump
 
 # Local database files
 *.db

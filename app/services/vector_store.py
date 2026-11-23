@@ -1,3 +1,4 @@
+import os
 from uuid import uuid4
 
 from qdrant_client import QdrantClient, models
@@ -7,9 +8,13 @@ from app.services.embedder import embed_texts, get_embedding_dimension
 
 COLLECTION_NAME = "studymate_chunks"
 
-# Store vectors on disk so they remain available after the app restarts.
-QDRANT_STORAGE_PATH = Path(__file__).resolve().parents[2] / "qdrant_storage"
-qdrant_client = QdrantClient(path=str(QDRANT_STORAGE_PATH))
+QDRANT_URL = os.getenv("QDRANT_URL")
+
+if QDRANT_URL:
+    qdrant_client = QdrantClient(url=QDRANT_URL)
+else:
+    QDRANT_STORAGE_PATH = Path(__file__).resolve().parents[2] / "qdrant_storage"
+    qdrant_client = QdrantClient(path=str(QDRANT_STORAGE_PATH))
 
 
 def ensure_collection() -> None:

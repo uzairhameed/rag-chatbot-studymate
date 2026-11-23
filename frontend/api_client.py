@@ -1,12 +1,12 @@
-"""Small HTTP client for calling the StudyMate FastAPI backend."""
-
+import os
 from typing import Any
 
 import requests
 
-
-# The UI and API run as separate local processes during development.
-API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = os.getenv(
+    "STUDYMATE_API_BASE_URL",
+    "http://127.0.0.1:8000",
+).rstrip("/")
 
 
 def _request(
