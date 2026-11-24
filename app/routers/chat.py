@@ -105,6 +105,9 @@ def chat_in_room(
         chunks = search_chunks(data.query, room_id=room_id, limit=5)
 
     answer, sources = answer_from_chunks(data.query, history, chunks)
+    if summary_file is not None:
+            sources = sources[:5]
+
     # Store both sides of the conversation; user messages have no citations.
     user_message = ChatMessage(
         room_id=room_id,

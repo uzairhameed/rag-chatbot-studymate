@@ -98,17 +98,17 @@ def answer_from_chunks(
     if answer.lower().strip(" .!?'’") in {"i don't know", "i don’t know"}:
         return ABSTAIN_ANSWER, []
 
-    cited_numbers = {
-        int(number)
-        for number in re.findall(
-            r"[\[【]Source\s+(\d+)[\]】]",
-            answer,
-        )
-    }
-    sources = [
-        source
-        for number, source in enumerate(sources, start=1)
-        if number in cited_numbers
-    ]
+    # cited_numbers = {
+    #     int(number)
+    #     for number in re.findall(
+    #         r"[\[【]Source\s+(\d+)[\]】]",
+    #         answer,
+    #     )
+    # }
+    # sources = [
+    #     source
+    #     for number, source in enumerate(sources, start=1)
+    #     if number in cited_numbers
+    # ]
 
     return answer, sources

@@ -1,5 +1,6 @@
 """Chat panel for a study room."""
 
+import re
 import streamlit as st
 
 from frontend.api_client import get_all_room_history, send_chat_message
@@ -33,7 +34,9 @@ def show_chat_panel(room_id: int) -> None:
                             f"`{source['file_type']}` · "
                             f"chunk {source['chunk_index']}"
                         )
-                        st.caption(source["excerpt"])
+                        #st.caption(source["excerpt"])
+                        excerpt = re.sub(r"(?m)^\s{0,3}#{1,6}\s+", "", source["excerpt"])
+                        st.caption(excerpt)
 
     query = st.chat_input("Ask a question about this room")
     if query:

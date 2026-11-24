@@ -3,6 +3,8 @@ from uuid import uuid4
 
 from qdrant_client import QdrantClient, models
 from pathlib import Path
+from functools import lru_cache
+from sentence_transformers import CrossEncoder
 
 from app.services.embedder import embed_texts, get_embedding_dimension
 
@@ -125,18 +127,55 @@ def get_file_chunks(file_id: int) -> list[models.Record]:
         key=lambda point: int((point.payload or {}).get("chunk_index", 0)),
     )
 
+@lru_cache(maxsize=1)
+def _get_chunk_reranker() -> CrossEncoder:
+    return CrossEncoder(
+        "cross-encoder/ms-marco-MiniLM-L6-v2",
+        device="cpu",
+    )
+
+# def search_chunks(
+#     query: str,
+#     *,
+#     room_id: int,
+#     limit: int = 5,
+# ) -> list[models.ScoredPoint]:
+#     """Search Qdrant only within the specified room."""
+#     if limit <= 0:
+#         raise ValueError("limit must be greater than zero")
+
+#     ensure_collection()
+#     query_vector = embed_texts([query])[0]
+
+#     result = qdrant_client.query_points(
+#         collection_name=COLLECTION_NAME,
+#         query=query_vector,
+#         query_filter=models.Filter(
+#             must=[
+#                 models.FieldCondition(
+#                     key="room_id",
+#                     match=models.MatchValue(value=room_id),
+#                 )
+#             ]
+#         ),
+#         limit=limit,
+#         with_payload=True,
+#     )
+#     return result.points
+
 def search_chunks(
     query: str,
     *,
     room_id: int,
     limit: int = 5,
 ) -> list[models.ScoredPoint]:
-    """Search Qdrant only within the specified room."""
+    """Retrieve a candidate pool, rerank it, and return the best chunks."""
     if limit <= 0:
         raise ValueError("limit must be greater than zero")
 
     ensure_collection()
     query_vector = embed_texts([query])[0]
+    candidate_limit = max(20, limit * 4)
 
     result = qdrant_client.query_points(
         collection_name=COLLECTION_NAME,
@@ -149,7 +188,31 @@ def search_chunks(
                 )
             ]
         ),
-        limit=limit,
+        limit=candidate_limit,
         with_payload=True,
     )
-    return result.points
+
+    candidates = [
+        point
+        for point in result.points
+        if isinstance((point.payload or {}).get("text"), str)
+        and (point.payload or {}).get("text", "").strip()
+    ]
+    if not candidates:
+        return []
+
+    pairs = [
+        (query, point.payload["text"])
+        for point in candidates
+    ]
+    scores = _get_chunk_reranker().predict(
+        pairs,
+        show_progress_bar=False,
+    )
+
+    ranked = sorted(
+        zip(scores, candidates),
+        key=lambda item: float(item[0]),
+        reverse=True,
+    )
+    return [point for _, point in ranked[:limit]]
