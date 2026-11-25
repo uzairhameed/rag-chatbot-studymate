@@ -21,7 +21,7 @@ services:
       - qdrant_data:/qdrant/storage
 
   api:
-    image: uzairhameed/studymate-api:1.0
+    image: uzairhameed/studymate-api:1.1
     restart: unless-stopped
     env_file:
       - .env
@@ -37,7 +37,7 @@ services:
       - "127.0.0.1:8000:8000"
 
   frontend:
-    image: uzairhameed/studymate-frontend:1.0
+    image: uzairhameed/studymate-frontend:1.1
     restart: unless-stopped
     environment:
       STUDYMATE_API_BASE_URL: http://api:8000

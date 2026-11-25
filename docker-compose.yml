@@ -24,7 +24,7 @@ services:
     build:
       context: .
       dockerfile: app/Dockerfile
-    image: uzairhameed/studymate-api:1.0
+    image: uzairhameed/studymate-api:1.1
     restart: unless-stopped
     env_file:
       - .env
@@ -43,7 +43,7 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    image: uzairhameed/studymate-frontend:1.0
+    image: uzairhameed/studymate-frontend:1.1
     restart: unless-stopped
     env_file:
       - frontend/.env.docker
